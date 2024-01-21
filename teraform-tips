@@ -1,0 +1,14 @@
+variable "cmek_key" {
+  description = "GCP Customer-Managed Encryption Key (CMEK)"
+  type        = string
+
+  validation {
+    condition = can(regex("^projects/.+/locations/.+/keyRings/.+/cryptoKeys/.+$", var.cmek_key))
+    error_message = "Invalid CMEK key format. It should be in the format 'projects/{project}/locations/{location}/keyRings/{keyRing}/cryptoKeys/{cryptoKey}'."
+  }
+}
+
+#name overriding
+locals {
+  final_resource_name = var.override_name ? "new_name" : var.resource_name
+}
