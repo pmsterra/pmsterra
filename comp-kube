@@ -1,0 +1,144 @@
+resource "google_container_cluster" "us_central1_example_environ_ae38b938_gke" {
+  addons_config {
+    gce_persistent_disk_csi_driver_config {
+      enabled = true
+    }
+
+    horizontal_pod_autoscaling {
+      disabled = false
+    }
+
+    network_policy_config {
+      disabled = true
+    }
+  }
+
+  cluster_autoscaling {
+    autoscaling_profile = "BALANCED"
+    enabled             = false
+  }
+
+  cluster_ipv4_cidr = "10.3.192.0/20"
+
+  cluster_telemetry {
+    type = "ENABLED"
+  }
+
+  database_encryption {
+    state = "DECRYPTED"
+  }
+
+  default_max_pods_per_node = 32
+
+  default_snat_status {
+    disabled = true
+  }
+
+  enable_intranode_visibility = true
+  enable_shielded_nodes       = true
+
+  ip_allocation_policy {
+    cluster_ipv4_cidr_block       = "10.3.192.0/20"
+    cluster_secondary_range_name  = "gke-us-central1-example-environ-ae38b938-gke-pods-d7b4be5c"
+    services_ipv4_cidr_block      = "172.16.194.0/23"
+    services_secondary_range_name = "gke-us-central1-example-environ-ae38b938-gke-services-d7b4be5c"
+  }
+
+  location = "us-central1-f"
+
+  logging_config {
+    enable_components = ["SYSTEM_COMPONENTS", "WORKLOADS"]
+  }
+
+  maintenance_policy {
+    recurring_window {
+      end_time   = "1970-01-01T04:00:00Z"
+      recurrence = "FREQ=WEEKLY;BYDAY=FR,SA,SU"
+      start_time = "1970-01-01T00:00:00Z"
+    }
+  }
+
+  master_auth {
+    client_certificate_config {
+      issue_client_certificate = false
+    }
+  }
+
+  monitoring_config {
+    enable_components = ["SYSTEM_COMPONENTS"]
+
+    managed_prometheus {
+      enabled = true
+    }
+  }
+
+  name    = "us-central1-example-environ-ae38b938-gke"
+  network = "projects/turing-alcove-384403/global/networks/default"
+
+  network_policy {
+    enabled  = false
+    provider = "PROVIDER_UNSPECIFIED"
+  }
+
+  networking_mode = "VPC_NATIVE"
+
+  node_config {
+    disk_size_gb = 100
+    disk_type    = "pd-standard"
+    image_type   = "COS_CONTAINERD"
+    machine_type = "n1-standard-1"
+
+    metadata = {
+      VmDnsSetting               = "ZonalPreferred"
+      disable-legacy-endpoints   = "true"
+      serial-port-logging-enable = "false"
+    }
+
+    oauth_scopes    = ["https://www.googleapis.com/auth/cloud-platform"]
+    service_account = "323956332254-compute@developer.gserviceaccount.com"
+
+    shielded_instance_config {
+      enable_integrity_monitoring = true
+      enable_secure_boot          = true
+    }
+  }
+
+  node_version = "1.27.7-gke.1121002"
+
+  notification_config {
+    pubsub {
+      enabled = false
+    }
+  }
+
+  pod_security_policy_config {
+    enabled = false
+  }
+
+  private_cluster_config {
+    enable_private_endpoint = false
+    enable_private_nodes    = true
+
+    master_global_access_config {
+      enabled = false
+    }
+
+    master_ipv4_cidr_block = "172.16.20.0/28"
+  }
+
+  project = "turing-alcove-384403"
+
+  release_channel {
+    channel = "STABLE"
+  }
+
+  resource_labels = {
+    goog-composer-environment      = "example-environment"
+    goog-composer-location         = "us-central1"
+    goog-composer-version          = "composer-1-20-12-airflow-2-4-3"
+    goog-composer-environment-uuid = "b2887674-e706-45ed-a63d-37f12e41a51a"
+  }
+
+  subnetwork = "projects/turing-alcove-384403/regions/us-central1/subnetworks/default"
+}
+# terraform import google_container_cluster.us_central1_example_environ_ae38b938_gke turing-alcove-384403/us-central1-f/us-central1-example-environ-ae38b938-gke
