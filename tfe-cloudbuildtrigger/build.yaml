@@ -1,0 +1,11 @@
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  script: |
+    docker build -t us-central1-docker.pkg.dev/turing-alcove-384403/gcf-artifacts/myflex:latest .
+  automapSubstitutions: true
+logsBucket: 'gs://us-central1-test-f115302e-bucket/build_logs'
+serviceAccount: 'projects/turing-alcove-384403/serviceAccounts/tfe-307@turing-alcove-384403.iam.gserviceaccount.com'
+options:
+  logging: GCS_ONLY
+images:
+- 'us-central1-docker.pkg.dev/turing-alcove-384403/gcf-artifacts/myflex:latest'
