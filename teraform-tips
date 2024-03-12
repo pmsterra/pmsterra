@@ -20,7 +20,7 @@ from google.cloud.devtools import cloudbuild_v1
 from os import environ
 
 
-def sample_run_build_trigger():
+def my_run_build_trigger():
     # Create a client
     client = cloudbuild_v1.CloudBuildClient()
 
