@@ -1,0 +1,57 @@
+{
+  "name": "projects//locations/us-central1/functions/gen2",
+  "buildConfig": {
+    "build": "projects/4/locations/us-central1/builds/9854aff4-2437-4ba2-9ac9-c446cb76cee8",
+    "runtime": "python39",
+    "entryPoint": "my_run_build_trigger",
+    "source": {
+      "storageSource": {
+        "bucket": "gcf-v2-sources--us-central1",
+        "object": "gen2/function-source.zip",
+        "generation": "1710437456149027"
+      }
+    },
+    "dockerRepository": "projects/t/locations/us-central1/repositories/gcf-artifacts",
+    "sourceProvenance": {
+      "resolvedStorageSource": {
+        "bucket": "gcf-v2-sources4-us-central1",
+        "object": "gen2/function-source.zip",
+        "generation": "1710437456149027"
+      }
+    },
+    "dockerRegistry": "ARTIFACT_REGISTRY"
+  },
+  "serviceConfig": {
+    "service": "proj/locations/us-central1/services/gen2",
+    "timeoutSeconds": 60,
+    "environmentVariables": {
+      "project_id": "\"t4403\"",
+      "trigger_id": "\"new-nopub\""
+    },
+    "maxInstanceCount": 59,
+    "ingressSettings": "ALLOW_ALL",
+    "uri": "https://gen2-gbo6st4mna-uc.a.run.app",
+    "serviceAccountEmail": "-compute@developer.gserviceaccount.com",
+    "availableMemory": "256Mi",
+    "allTrafficOnLatestRevision": true,
+    "revision": "gen2-00002-tag",
+    "maxInstanceRequestConcurrency": 1,
+    "availableCpu": "167m"
+  },
+  "eventTrigger": {
+    "trigger": "projects/t/locations/us-central1/triggers/gen2-913167",
+    "triggerRegion": "us-central1",
+    "eventType": "google.cloud.pubsub.topic.v1.messagePublished",
+    "pubsubTopic": "projects/turing-/topics/my-topic",
+    "serviceAccountEmail": "-compute@developer.gserviceaccount.com",
+    "retryPolicy": "RETRY_POLICY_DO_NOT_RETRY"
+  },
+  "state": "ACTIVE",
+  "updateTime": "2024-03-14T17:31:",
+  "labels": {
+    "deployment-tool": "console-cloud"
+  },
+  "environment": "GEN_2",
+  "url": "https://us-centr.cloudfunctions.net/gen2",
+  "createTime": "2024-03-14T17:12:"
+}
