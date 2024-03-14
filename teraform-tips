@@ -20,6 +20,10 @@ from google.cloud.devtools import cloudbuild_v1
 from os import environ
 
 
+
+
+
+
 def my_run_build_trigger():
     # Create a client
     client = cloudbuild_v1.CloudBuildClient()
@@ -45,4 +49,12 @@ def my_run_build_trigger():
 functions-framework==3.*
 google-cloud-build
 
+# sample pubsub
+import base64
+import functions_framework
 
+# Triggered from a message on a Cloud Pub/Sub topic.
+@functions_framework.cloud_event
+def hello_pubsub(cloud_event):
+    # Print out the data from Pub/Sub, to prove that it worked
+    print(base64.b64decode(cloud_event.data["message"]["data"]))
