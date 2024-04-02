@@ -106,3 +106,5 @@ functions-framework
 def hello_pubsub(cloud_event):
     # Print out the data from Pub/Sub, to prove that it worked
     print(base64.b64decode(cloud_event.data["message"]["data"]))
+
+ref:  syntax for build run in python: https://cloud.google.com/python/docs/reference/cloudbuild/latest/google.cloud.devtools.cloudbuild_v1.types.RunBuildTriggerRequest
