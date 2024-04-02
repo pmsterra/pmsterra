@@ -53,6 +53,54 @@ google-cloud-build
 import base64
 import functions_framework
 
+Working- Gen 1
+
+import base64
+from google.cloud.devtools import cloudbuild_v1
+
+from google.auth import compute_engine
+
+def hello_pubsub(event, context):
+    """Triggered from a message on a Cloud Pub/Sub topic.
+    Args:
+         event (dict): Event payload.
+         context (google.cloud.functions.Context): Metadata for the event.
+    """
+    pubsub_message = base64.b64decode(event['data']).decode('utf-8')
+    print(pubsub_message)
+
+    # Authenticate using Compute Engine default credentials
+    credentials = compute_engine.Credentials()
+
+    # Initialize the Cloud Build client
+    client = cloudbuild_v1.services.cloud_build.CloudBuildClient(credentials=credentials)
+
+    # Name of the existing Cloud Build trigger to be executed
+    trigger_name = 'projects/turing-alcove-384403/triggers/new-nopub'  # Replace with your project ID and trigger ID
+
+    # Run the Cloud Build trigger
+    #operation = client.run_build_trigger(name=new-nopub)
+    request = cloudbuild_v1.RunBuildTriggerRequest(
+        project_id="turing-alcove-384403",
+        #trigger_id="new-nopub",
+        name="projects/turing-alcove-384403/locations/us-central1/triggers/new-nopub",
+    )
+
+    # Make the request
+    operation = client.run_build_trigger(request=request)
+
+
+    print('Triggered build:', operation.metadata.build.id)
+
+Requirement
+# Function dependencies, for example:
+# package>=version
+google-cloud-build
+functions-framework
+
+
+
+
 # Triggered from a message on a Cloud Pub/Sub topic.
 @functions_framework.cloud_event
 def hello_pubsub(cloud_event):
