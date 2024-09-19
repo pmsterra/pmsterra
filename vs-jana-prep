@@ -95,3 +95,62 @@ def create_vector_index(bucket_name, index_name):
 generate_and_save_embeddings(pdf_path,sentence_file_path,embed_file_path)
 upload_file(bucket_name,file_path)
 create_vector_index(bucket_name, index_name)
+
+
+
+
+# The previous part of this tutorial is at https://gist.github.com/janakiramm/55d2d8ec5d14dd45c7e9127d81cdafcd
+
+from vertexai.language_models import TextEmbeddingModel
+from google.cloud import aiplatform
+import vertexai
+from vertexai.preview.generative_models import GenerativeModel, Part
+import json
+import os
+
+project=”YOUR_GCP_PROJECT”
+location="us-central1"
+sentence_file_path = "lakeside_sentences.json"
+index_name="INDEX_EP_ID" #Get this from the console or the previous step
+
+aiplatform.init(project=project,location=location)
+vertexai.init()
+model = GenerativeModel("gemini-pro")
+lakeside_index_ep = aiplatform.MatchingEngineIndexEndpoint(index_endpoint_name=index_name)
+
+def generate_text_embeddings(sentences) -> list:    
+    model = TextEmbeddingModel.from_pretrained("textembedding-gecko@001")
+    embeddings = model.get_embeddings(sentences)
+    vectors = [embedding.values for embedding in embeddings]
+    return vectors
+
+def generate_context(ids,data):
+    concatenated_names = ''
+    for id in ids:
+        for entry in data:
+            if entry['id'] == id:
+                concatenated_names += entry['sentence'] + "\n" 
+    return concatenated_names.strip()
+  
+data=load_file(sentence_file_path)
+
+#query=["How many days of unpaid leave in an year"]
+#query=["Allowed cost of online course"]
+#query=["process for applying sick leave"]
+query=["process for applying personal leave"]
+qry_emb=generate_text_embeddings(query)
+
+response = lakeside_index_ep.find_neighbors(
+    deployed_index_id = index_name,
+    queries = [qry_emb[0]],
+    num_neighbors = 10
+)
+
+matching_ids = [neighbor.id for sublist in response for neighbor in sublist]
+
+context = generate_context(matching_ids,data)
+prompt=f"Based on the context delimited in backticks, answer the query. ```{context}``` {query}"
+
+chat = model.start_chat(history=[])
+response = chat.send_message(prompt)
+print(response.text)
