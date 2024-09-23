@@ -207,3 +207,10 @@ resource "google_discovery_engine_chat_engine" "primary" {
   
 }
 
+
+
+
+
+output "name" {
+  value = flatten([google_storage_bucket.test[*].name,google_storage_bucket.test_end[*].name])[0]
+}
