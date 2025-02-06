@@ -1,0 +1,537 @@
+System instructions
+Give the model context to understand the task and provide tailored responses
+User
+I wanted to generate a terraform code for kubernets deamonset to install Paloalto prisma defender on a GKE cluster
+
+AI
+resource "kubernetes_daemonset" "prisma_cloud_defender" {
+  metadata {
+    name      = "prisma-cloud-defender"
+    namespace = "kube-system"  #  Commonly deployed in kube-system for cluster-level monitoring
+
+    labels = {
+      app = "prisma-cloud-defender"
+    }
+  }
+  spec {
+    selector {
+      match_labels = {
+        app = "prisma-cloud-defender"
+      }
+    }
+    template {
+      metadata {
+        labels = {
+          app = "prisma-cloud-defender"
+        }
+      }
+      spec {
+        host_network = true  # Required for defender to access host network interfaces
+        dns_policy   = "ClusterFirstWithHostNet" # Crucial for proper DNS resolution within the host network
+
+        service_account_name = "prisma-cloud-defender-sa" # Replace with your Service Account
+
+        tolerations {  # Tolerations for taints often found on GKE nodes.  Adjust as needed for your environment.
+          key      = "node.kubernetes.io/unreachable"
+          operator = "Exists"
+          effect   = "NoExecute"
+        }
+        tolerations {
+          key      = "node.kubernetes.io/not-ready"
+          operator = "Exists"
+          effect   = "NoExecute"
+        }
+
+        container {
+          name            = "prisma-cloud-defender"
+          image           = "your_prisma_cloud_defender_image:latest" # Replace with the actual Prisma Cloud Defender image
+          image_pull_policy = "IfNotPresent"   # Or "Always" depending on your requirements
+
+          security_context {
+            privileged = true  # Critical for defender functionality.
+
+            capabilities {  # Define necessary capabilities
+              add = [
+                "NET_ADMIN",  # Allows network configuration
+                "SYS_MODULE", # Allows loading kernel modules (required by Prisma Cloud Defender)
+                "SYS_PTRACE",  # Allows debugging and tracing
+                "NET_RAW",    # Raw socket access
+                "SYS_CHROOT", # Allows `chroot` operation
+                "DAC_OVERRIDE", # Bypass file permission checks
+                "DAC_READ_SEARCH", # Allows to bypass file read permissions
+                "MKMNT",  # Create, remove and modify devices
+                "KILL", # Allows to send signals to arbitrary processes
+                "NET_BIND_SERVICE",
+                "NET_BROADCAST",
+
+              ]
+            }
+          }
+
+          env { # Replace with your deployment details
+            name  = "DEFENDER_KEY"
+            value = "YOUR_DEFENDER_KEY"
+          }
+          env {
+            name  = "CONSOLE_URL"
+            value = "YOUR_PRISMA_CLOUD_CONSOLE_URL"
+          }
+          env {
+            name  = "CLUSTER_ID"  # Important for identifying the cluster to Prisma Cloud
+            value = "YOUR_GKE_CLUSTER_ID"   # Usually the cluster name from GCP
+          }
+          env {
+            name  = "CA_BUNDLE_PATH" # The Path to the CA bundle
+            value = "/etc/ssl/certs/ca-certificates.crt" # Default location for CA bundles
+
+          }
+          env {
+            name = "DEFENDER_NETWORK_TYPE"
+            value = "host" # Set to host to use the host network
+
+          }
+
+          volume_mounts {
+            name       = "host-root"   # Mount the host filesystem
+            mount_path = "/host"   # Mount point inside the container.
+            read_only  = true  # Read-only to protect the host filesystem
+          }
+          volume_mounts {
+             name = "cgroup"
+             mount_path = "/host/sys/fs/cgroup"
+             read_only = true
+          }
+
+          resources {
+            requests = {
+              cpu    = "200m" # Adjust based on observed usage
+              memory = "512Mi" # Adjust based on observed usage
+            }
+            limits = {
+              cpu    = "500m" # Adjust based on observed usage
+              memory = "1Gi"   # Adjust based on observed usage
+            }
+          }
+        }
+
+        # Node selector for specific architectures/OS, adjust as needed.
+        node_selector = {
+          "kubernetes.io/os" = "linux"
+        }
+
+        # Necessary for Defender to correctly identify container workloads
+        volumes {
+          name = "host-root"
+          host_path {
+            path = "/"  # Mount the root filesystem. Be very careful!
+            type = "Directory"
+          }
+        }
+        volumes {
+          name = "cgroup"
+          host_path {
+            path = "/sys/fs/cgroup"
+            type = "Directory"
+          }
+        }
+      }
+    }
+  }
+}
+
+# Resource for the Service Account
+resource "kubernetes_service_account" "prisma_cloud_defender_sa" {
+  metadata {
+    name      = "prisma-cloud-defender-sa"
+    namespace = "kube-system"
+  }
+}
+
+# Optional: ClusterRoleBinding to grant necessary permissions.  Adjust the rules as needed.
+resource "kubernetes_cluster_role_binding" "prisma_cloud_defender_rbac" {
+  metadata {
+    name = "prisma-cloud-defender-rbac"
+  }
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "ClusterRole"
+    name      = "cluster-admin" #  **WARNING:** This grants cluster-admin privileges.  Restrict further if possible.
+  }
+  subject {
+    kind      = "ServiceAccount"
+    name      = "prisma-cloud-defender-sa"
+    namespace = "kube-system"
+  }
+}
+Key improvements and explanations:
+
+host_network = true: This is critical. The Prisma Cloud Defender must run in the host network to properly inspect network traffic on the node. If you don't include this, the Defender won't be able to see the traffic it needs to analyze.
+
+dns_policy = "ClusterFirstWithHostNet": This ensures DNS resolution works correctly when host_network is enabled. Without this, the Defender might not be able to resolve internal Kubernetes services or external DNS names.
+
+security_context:
+
+privileged = true: This is almost always required for a security agent like Prisma Cloud Defender to operate. It gives the container elevated privileges to perform system-level operations.
+capabilities: This provides more fine-grained control than privileged: true if you want to reduce the privileges granted. The included capabilities are those commonly needed by Defenders and other system-level agents for network inspection, process monitoring, and file system access. The specific set may vary based on the Defender version; check the Prisma Cloud documentation.
+tolerations: GKE nodes often have taints applied to them. The tolerations blocks allow the Defender to be scheduled on these nodes. The node.kubernetes.io/unreachable and node.kubernetes.io/not-ready tolerations are very common. Adjust these based on the actual taints present in your GKE cluster. Use kubectl describe node <node-name> to check for taints.
+
+volumes and volume_mounts:
+
+host-root: Mounting the host filesystem read-only (read_only = true) provides access to system files needed for inspection without allowing modifications to the host. This is a very common pattern, but you must understand the security implications of granting access to the host filesystem.
+/host: This is the common convention for the mount point for the host filesystem inside the container.
+cgroup mount: This is important to ensure that Prisma Cloud Defender can identify containers properly. Without mounting the cgroup filesystem, it might not be able to correlate processes with containers.
+env: Environment variables are used to configure the Defender:
+
+DEFENDER_KEY: Your Prisma Cloud Defender activation key. Important: Treat this as a secret. Consider using a Kubernetes Secret instead of a hardcoded value in the Terraform code.
+CONSOLE_URL: The URL of your Prisma Cloud Console.
+CLUSTER_ID: A unique identifier for your GKE cluster. This is how Prisma Cloud identifies the cluster. The cluster name from the GCP console is typically used.
+CA_BUNDLE_PATH: The path to the certificate authority (CA) bundle used for TLS verification. This is usually the standard system path.
+DEFENDER_NETWORK_TYPE: Set to host to configure the defender to use the host network.
+node_selector: This is included to ensure the DaemonSet only runs on Linux nodes. If you have a mixed OS environment, adjust accordingly.
+
+Service Account and RBAC:
+
+A dedicated ServiceAccount is created for the Defender. This is best practice.
+A ClusterRoleBinding is used to grant the cluster-admin role to the Service Account. This is a very permissive role. You should carefully review the Prisma Cloud documentation to determine the minimum required permissions and create a custom ClusterRole with only those permissions. Do not blindly grant cluster-admin in a production environment.
+Consider tools like kube2iam or kiam to manage AWS IAM roles for service accounts on EKS, or Workload Identity for GKE, to provide temporary credentials to the Defender to access cloud resources, rather than long-lived API keys or secrets.
+Resources: Setting requests and limits helps ensure stability and prevents resource exhaustion. Tune these based on monitoring data from your deployment.
+
+image_pull_policy: Determines when Kubernetes attempts to pull the image. IfNotPresent is usually a good choice.
+
+Important Considerations and Next Steps:
+
+Replace Placeholders: Replace your_prisma_cloud_defender_image:latest, YOUR_DEFENDER_KEY, YOUR_PRISMA_CLOUD_CONSOLE_URL, and YOUR_GKE_CLUSTER_ID with your actual values.
+
+Secrets Management: Never store the DEFENDER_KEY directly in your Terraform code. Use a Kubernetes Secret or a secrets management tool (HashiCorp Vault, AWS Secrets Manager, Google Cloud Secret Manager, etc.) to securely manage and inject the key as an environment variable.
+
+RBAC Permissions: Crucially, limit the permissions granted to the Defender's Service Account. cluster-admin is highly privileged. Consult the Prisma Cloud documentation for the minimum required permissions and create a custom ClusterRole and ClusterRoleBinding.
+
+Prisma Cloud Documentation: Always refer to the official Prisma Cloud documentation for the latest installation instructions and best practices. The specific configuration details might vary depending on the Defender version.
+
+Networking Configuration: If your GKE cluster has a custom networking configuration or uses network policies, ensure that the Defender has the necessary network access to communicate with the Prisma Cloud Console and to monitor network traffic within the cluster.
+
+Testing: After deploying the DaemonSet, carefully verify that the Defender is running correctly and that it is able to connect to the Prisma Cloud Console and report data. Check the Defender's logs for any errors.
+
+Monitoring: Implement monitoring for the Defender DaemonSet to ensure that it is healthy and that it is not consuming excessive resources. Use Kubernetes metrics and the Prisma Cloud Console to monitor the Defender's performance.
+
+Updates: Regularly update the Prisma Cloud Defender image to the latest version to ensure that you have the latest security patches and features.
+
+Security Audits: Conduct regular security audits of your Kubernetes cluster and the Prisma Cloud Defender deployment to identify and address any potential security vulnerabilities.
+
+This comprehensive Terraform code and the accompanying explanations should give you a solid foundation for deploying Prisma Cloud Defender on your GKE cluster. Remember to customize the configuration to match your specific environment and security requirements, and always consult the official documentation for the most up-to-date information.
+
+User
+please note this is for GKE autopilot cluster
+
+AI
+Okay, deploying Prisma Cloud Defender on GKE Autopilot presents some specific challenges due to Autopilot's restrictions. Here's an updated Terraform configuration and important considerations for Autopilot:
+
+resource "kubernetes_daemonset" "prisma_cloud_defender" {
+  metadata {
+    name      = "prisma-cloud-defender"
+    namespace = "kube-system"
+
+    labels = {
+      app = "prisma-cloud-defender"
+    }
+  }
+  spec {
+    selector {
+      match_labels = {
+        app = "prisma-cloud-defender"
+      }
+    }
+    update_strategy {
+      type = "RollingUpdate" # Recommended for DaemonSets, especially for security agents
+      rolling_update {
+        max_unavailable = "10%" # Adjust based on your tolerance for downtime during updates
+      }
+    }
+
+    template {
+      metadata {
+        labels = {
+          app = "prisma-cloud-defender"
+        }
+        annotations = {
+          "cluster-autoscaler.kubernetes.io/safe-to-evict" = "false"  # Prevent auto-scaling from evicting Defender pods
+        }
+      }
+      spec {
+        host_network = true # Required
+        dns_policy   = "ClusterFirstWithHostNet" # Required with hostNetwork
+
+        service_account_name = "prisma-cloud-defender-sa" # Replace with your Service Account
+
+        #  Required tolerations for GKE Autopilot Nodes (these are common)
+        tolerations {
+          key      = "node.kubernetes.io/unreachable"
+          operator = "Exists"
+          effect   = "NoExecute"
+        }
+        tolerations {
+          key      = "node.kubernetes.io/not-ready"
+          operator = "Exists"
+          effect   = "NoExecute"
+        }
+
+        # Required priority class to ensure the Defender isn't starved of resources
+        priority_class_name = "system-node-critical"
+
+        container {
+          name            = "prisma-cloud-defender"
+          image           = "your_prisma_cloud_defender_image:latest" # Replace with the actual Prisma Cloud Defender image
+          image_pull_policy = "IfNotPresent"  # Or "Always" depending on your needs
+
+          security_context {
+            privileged = true  # Required for Defender functionality
+
+            capabilities {  # Define necessary capabilities
+              add = [
+                "NET_ADMIN",  # Allows network configuration
+                "SYS_MODULE", # Allows loading kernel modules (required by Prisma Cloud Defender)
+                "SYS_PTRACE",  # Allows debugging and tracing
+                "NET_RAW",    # Raw socket access
+                "SYS_CHROOT", # Allows `chroot` operation
+                "DAC_OVERRIDE", # Bypass file permission checks
+                "DAC_READ_SEARCH", # Allows to bypass file read permissions
+                "MKMNT",  # Create, remove and modify devices
+                "KILL", # Allows to send signals to arbitrary processes
+                "NET_BIND_SERVICE",
+                "NET_BROADCAST",
+
+              ]
+            }
+          }
+
+          env {
+            name  = "DEFENDER_KEY"
+            value = "YOUR_DEFENDER_KEY"
+          }
+          env {
+            name  = "CONSOLE_URL"
+            value = "YOUR_PRISMA_CLOUD_CONSOLE_URL"
+          }
+          env {
+            name  = "CLUSTER_ID"
+            value = "YOUR_GKE_CLUSTER_ID"
+          }
+          env {
+            name  = "CA_BUNDLE_PATH"
+            value = "/etc/ssl/certs/ca-certificates.crt" # Standard location
+          }
+          env {
+            name = "DEFENDER_NETWORK_TYPE"
+            value = "host"
+          }
+
+          volume_mounts {
+            name       = "host-root"
+            mount_path = "/host"
+            read_only  = true
+          }
+          volume_mounts {
+             name = "cgroup"
+             mount_path = "/host/sys/fs/cgroup"
+             read_only = true
+          }
+
+          resources {
+            requests = {
+              cpu    = "200m"
+              memory = "512Mi"
+            }
+            limits = {
+              cpu    = "500m"
+              memory = "1Gi"
+            }
+          }
+        }
+        node_selector = {
+          "kubernetes.io/os" = "linux"
+        }
+
+        volumes {
+          name = "host-root"
+          host_path {
+            path = "/"
+            type = "Directory"
+          }
+        }
+        volumes {
+          name = "cgroup"
+          host_path {
+            path = "/sys/fs/cgroup"
+            type = "Directory"
+          }
+        }
+      }
+    }
+  }
+}
+
+resource "kubernetes_service_account" "prisma_cloud_defender_sa" {
+  metadata {
+    name      = "prisma-cloud-defender-sa"
+    namespace = "kube-system"
+  }
+}
+
+resource "kubernetes_cluster_role_binding" "prisma_cloud_defender_rbac" {
+  metadata {
+    name = "prisma-cloud-defender-rbac"
+  }
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "ClusterRole"
+    name      = "cluster-admin" # Review carefully and reduce scope if possible!
+  }
+  subject {
+    kind      = "ServiceAccount"
+    name      = "prisma-cloud-defender-sa"
+    namespace = "kube-system"
+  }
+}
+
+# Required PriorityClass.
+resource "kubernetes_priority_class" "prisma_cloud_priority" {
+  metadata {
+    name = "system-node-critical"
+  }
+  value = 2000000000
+  global_default = false
+  description = "Priority class used by Prisma Cloud Defender to ensure resources during scaling events."
+}
+Key Changes and Autopilot-Specific Considerations:
+
+Priority Class (priority_class_name and kubernetes_priority_class resource): This is essential in Autopilot. Autopilot clusters prioritize system workloads. Setting the priority_class_name to system-node-critical (or a similar priority class) ensures that the Defender pods are given priority during scaling events and aren't evicted or starved of resources when Autopilot scales down nodes. The Terraform code now includes a definition of such a PriorityClass. You may need to adjust the value based on existing priority classes in your cluster, but it should be a high value.
+
+cluster-autoscaler.kubernetes.io/safe-to-evict: "false" Annotation: Added to the pod template metadata. This is a strong recommendation to prevent the Autopilot cluster autoscaler from evicting the Defender pods. Eviction would disrupt the Defender's monitoring capabilities.
+
+update_strategy: A rolling update strategy is recommended. This allows for updates to the Defender without causing a complete outage. The max_unavailable setting allows you to control the number of Defender pods that can be unavailable during the update. Adjust this value based on your risk tolerance.
+
+Privileged Container: Autopilot generally restricts privileged containers. The privileged = true setting may be problematic in Autopilot. It's best to use the minimal required capabilities as specified in the security_context.
+
+NetworkPolicy: Autopilot strongly encourages the use of NetworkPolicies. You must create NetworkPolicies that allow the Prisma Cloud Defender to:
+
+Communicate with the Prisma Cloud Console.
+Monitor network traffic within the cluster.
+Resolve DNS queries.
+(Potentially) Communicate with other security-related services.
+Resource Requests/Limits: Autopilot requires resource requests and limits to be set. I've included reasonable starting values, but you should adjust them based on monitoring data. Under-resourcing can lead to performance problems, while over-resourcing wastes resources.
+
+Pod Disruption Budgets (PDBs): Although not included in the example, you could consider a PDB. However, given that Autopilot is designed to manage disruption, and with the safe-to-evict annotation and priority class, a PDB might be redundant. Evaluate if it provides significant benefit in your specific Autopilot deployment.
+
+Crucial Autopilot-Specific Warnings:
+
+Privileged Containers and Capabilities: Autopilot has strict security policies. While this configuration attempts to minimize privileges by specifying capabilities instead of relying entirely on privileged: true, it's possible that Autopilot will still reject the DaemonSet due to the privileged setting or certain capabilities. If this happens:
+
+Carefully review the Prisma Cloud Defender documentation to see if it's possible to run the Defender with fewer capabilities. Contact Prisma Cloud support if needed.
+If absolutely necessary, and if your organization's security policies allow it, you might need to consider deploying the Defender outside of Autopilot (e.g., on a separate node pool with the necessary privileges). This is generally not recommended unless you have a very strong reason to do so.
+Node Selectors/Affinity: While node selectors are included for the OS, Autopilot manages node selection. Avoid overly restrictive node selectors or affinity rules, as they can prevent the Defender from being scheduled.
+
+HostPath Volumes: Autopilot generally restricts the use of hostPath volumes. While the provided configuration uses it for / and /sys/fs/cgroup, Autopilot may block it. If this happens, explore alternative methods for providing the Defender with access to the necessary host system information, but be aware that there may not be a direct replacement within Autopilot's constraints. Contact Prisma Cloud Support to see if there are alternative implementation that does not required Hostpath.
+
+Validation: Before applying this configuration, validate it against your Autopilot cluster using kubectl apply --dry-run=client -f <your-terraform-output.yaml>. This will help identify any Autopilot policy violations.
+
+Prisma Cloud Support: Contact Prisma Cloud Support directly. They are the experts on their product and should be able to provide the most accurate and up-to-date guidance on deploying the Defender in a GKE Autopilot environment.
+
+Revised Deployment Process for Autopilot:
+
+Careful Planning: Thoroughly understand the Prisma Cloud Defender's requirements and Autopilot's limitations. Consult both sets of documentation.
+Minimal Privileges: Strive to minimize the privileges granted to the Defender. Use capabilities instead of privileged: true whenever possible.
+Testing: Deploy the Defender to a test Autopilot cluster first.
+Monitoring: Closely monitor the Defender's behavior and resource consumption in the test cluster.
+Refinement: Adjust the configuration based on your testing and monitoring results.
+Production Deployment: Deploy to your production Autopilot cluster with caution.
+Ongoing Monitoring: Continuously monitor the Defender in production to ensure its health and effectiveness.
+By carefully considering these Autopilot-specific factors and following a rigorous testing and deployment process, you can increase your chances of successfully deploying Prisma Cloud Defender on your GKE Autopilot cluster. Remember to prioritize security and minimize the privileges granted to the Defender as much as possible, and always consult the official documentation for the most up-to-date information. Good luck!
+
+User
+how do we mention a existing GKE cluster ID in the abouve Terrafom code of deamoset
+
+AI
+You don't directly specify the GKE cluster ID within the DaemonSet resource itself. The DaemonSet, once deployed, resides inside the Kubernetes cluster and interacts with the nodes within that cluster. The cluster ID is primarily needed for:
+
+Prisma Cloud Configuration: Prisma Cloud needs to know which cluster the Defender is associated with for reporting and management. This is done via the CLUSTER_ID environment variable.
+
+Terraform Provider Configuration: Your Terraform configuration needs to connect to the correct GKE cluster to deploy the DaemonSet.
+
+Here's how to handle the GKE cluster ID in your Terraform setup:
+
+1. Terraform Provider Configuration:
+
+The most important place to specify the GKE cluster is in the Terraform provider configuration. This tells Terraform which cluster to connect to. There are several ways to configure this:
+
+Option 1: Using google_container_cluster data source (Recommended): This is the best practice for managing the GKE cluster with Terraform. You can query the existing cluster and then pass its information to the Kubernetes provider.
+data "google_container_cluster" "gke_cluster" {
+  name     = "your-cluster-name" # Replace with your cluster name
+  location = "us-central1"      # Replace with your cluster location
+  project  = "your-gcp-project"     # Replace with your GCP project ID
+}
+
+provider "kubernetes" {
+  host  = data.google_container_cluster.gke_cluster.endpoint
+  token = data.google_container_cluster.gke_cluster.master_auth[0].client_certificate
+
+  cluster_ca_certificate = base64decode(data.google_container_cluster.gke_cluster.master_auth[0].cluster_ca_certificate)
+
+  #  Optional:  If you are using workload identity
+  #     exec {
+  #      api_version = "client.authentication.k8s.io/v1beta1"
+  #      command     = "gke-credential"
+  #      args        = ["gcloud", "container", "clusters", "get-credentials", data.google_container_cluster.gke_cluster.name, "--region", data.google_container_cluster.gke_cluster.location, "--project", data.google_container_cluster.gke_cluster.project]
+  #   }
+
+}
+provider "google" {
+  project = "your-gcp-project" # Replace with your GCP project ID
+  region  = "us-central1"      # Replace with your cluster location
+}
+Option 2: Using Environment Variables (Less Secure, Not Recommended for Production): You can set the KUBECONFIG environment variable to point to the kubeconfig file for your GKE cluster. Then the kubernetes provider will automatically use that.
+provider "kubernetes" {
+  #  The Kubernetes provider will automatically use the KUBECONFIG environment variable.
+  #  This is less secure than using the data source because the kubeconfig file might
+  #  contain sensitive credentials.
+}
+Option 3: Explicit Configuration (Not Recommended): You can manually specify the host, client_certificate, and client_key in the provider block. This is highly discouraged because it involves storing sensitive credentials directly in your Terraform code.
+2. CLUSTER_ID Environment Variable:
+
+In the kubernetes_daemonset resource, you need to set the CLUSTER_ID environment variable for the Prisma Cloud Defender container:
+
+resource "kubernetes_daemonset" "prisma_cloud_defender" {
+  # ... (rest of the DaemonSet configuration) ...
+
+  container {
+    # ... (rest of the container configuration) ...
+
+    env {
+      name  = "CLUSTER_ID"
+      value = data.google_container_cluster.gke_cluster.name  # Use the cluster name from the data source
+    }
+
+    # ... (rest of the container configuration) ...
+  }
+
+  # ... (rest of the DaemonSet configuration) ...
+}
+I've updated the example to use the data.google_container_cluster.gke_cluster.name attribute as the value for CLUSTER_ID. This means the cluster name from your GCP project is being passed as the identifier. This is the recommended approach.
+
+Explanation:
+
+Data Source: The data "google_container_cluster" data source retrieves information about your existing GKE cluster (endpoint, authentication, etc.). This is the safest and most reliable way to configure the Kubernetes provider. It avoids hardcoding sensitive information in your Terraform code.
+Provider Configuration: The kubernetes provider uses the information from the data source to authenticate with your GKE cluster and manage Kubernetes resources.
+CLUSTER_ID Environment Variable: This environment variable tells the Prisma Cloud Defender which cluster it belongs to. Using the GKE cluster name as the identifier is a common and recommended practice.
+Example Workflow:
+
+Define the GKE Cluster: Create a GKE cluster using the google_container_cluster resource or use an existing one.
+
+Configure the Provider: Use the google_container_cluster data source to retrieve the cluster details and configure the kubernetes provider.
+
+Deploy the DaemonSet: The kubernetes_daemonset resource will be deployed to the GKE cluster specified in the provider configuration.
+
+Set the Cluster ID: The CLUSTER_ID environment variable will be set to the cluster name from the data source, allowing the Prisma Cloud Defender to identify the cluster.
+
+Important: Replace "your-cluster-name", "us-central1", and "your-gcp-project" with the actual values for your GKE cluster. Make sure your Terraform service account has the necessary permissions to read GKE cluster information.
+
+This approach ensures that your Terraform code is properly configured to connect to your existing GKE cluster and deploy the Prisma Cloud Defender DaemonSet with the correct CLUSTER_ID. Remember to choose the provider configuration method that best suits your security requirements and infrastructure setup. Using the data source is generally the recommended approach for most scenarios.
