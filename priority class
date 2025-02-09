@@ -1,0 +1,31 @@
+from kubernetes import client, config
+from kubernetes.client import V1PriorityClass
+
+def create_priority_class():
+    # Load kube config
+    config.load_kube_config()  # For local config, adjust if running in GCP
+
+    # Define the PriorityClass
+    priority_class = V1PriorityClass(
+        api_version="scheduling.k8s.io/v1",
+        kind="PriorityClass",
+        metadata=client.V1ObjectMeta(
+            name="high-priority-class",  # Name of the PriorityClass
+            description="A high-priority class for critical workloads."
+        ),
+        value=1000000,  # Priority value (higher means higher priority)
+        global_default=False,  # Whether this is the default class
+        preemption_policy="PreemptLowerPriority",  # Policy to preempt lower priority pods
+        age_limit_seconds=None  # Optional: Define the maximum time for this priority
+    )
+
+    # API call to create the PriorityClass
+    api_instance = client.SchedulingV1Api()
+    try:
+        api_instance.create_priority_class(priority_class)
+        print("PriorityClass created successfully!")
+    except client.exceptions.ApiException as e:
+        print("Error while creating PriorityClass: %s\n" % e)
+
+if __name__ == "__main__":
+    create_priority_class()
