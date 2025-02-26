@@ -29,3 +29,297 @@ def create_priority_class():
 
 if __name__ == "__main__":
     create_priority_class()
+
+##### service
+
+import functions_framework
+import google.auth
+from googleapiclient import discovery
+import os
+import yaml
+import json
+import requests  # Import the requests library
+from kubernetes import client, config
+from kubernetes.client.configuration import Configuration # Corrected Import <------
+from google.auth.transport.requests import Request
+from google.auth import compute_engine
+from google.auth.transport.requests import Request
+from google.cloud import container_v1
+from kubernetes import client, config
+from kubernetes.client.rest import ApiException
+
+
+
+@functions_framework.cloud_event
+def connect_to_gke(cloud_event):
+    """
+    Connects to a GKE cluster and retrieves cluster information.
+    Triggered by a Cloud Event.  This is a basic example, expand upon it!
+    """
+
+    # 1. Configuration - Get values from environment variables
+    PROJECT_ID = os.environ.get("PROJECT_ID")
+    GKE_REGION = os.environ.get("GKE_REGION")
+    GKE_CLUSTER_NAME = os.environ.get("GKE_CLUSTER_NAME")
+    KSA_NAME = os.environ.get("KSA_NAME")
+    DAEMONSET_YAML_PATH = os.environ.get("DAEMONSET_YAML_PATH")
+    NAMESPACE = os.environ.get("NAMESPACE")
+    cluster_name = GKE_CLUSTER_NAME
+    region=  GKE_REGION
+    project_id = PROJECT_ID
+    daemonset_name = "example-daemonset"
+    namespace = NAMESPACE
+    yamlpath ="./mytest2.yaml"
+    if not all([PROJECT_ID, GKE_REGION, GKE_CLUSTER_NAME]):
+        print("Error: Missing environment variables. Ensure PROJECT_ID, GKE_REGION, and GKE_CLUSTER_NAME are set.")
+        return
+    deploy_daemonset(cluster_name,region,project_id,daemonset_name,namespace,yamlpath)
+
+ 
+
+# 1. Authenticate and retrieve GKE Autopilot credentials
+def get_gke_credentials(cluster_name,region,project_id):
+    # Create a GKE client to interact with the Autopilot cluster
+    gke_client = container_v1.ClusterManagerClient()
+
+    # Get the cluster details (this will work for both standard and Autopilot clusters)
+    #cluster = gke_client.get_cluster(name=cluster_name, location=region, project_id=project_id)
+    cluster = gke_client.get_cluster(name=f"projects/{project_id}/locations/{region}/clusters/{cluster_name}")
+    # Extract credentials from the cluster
+    endpoint = cluster.endpoint
+    print(endpoint)
+    cluster_ca_certificate = cluster.master_auth.cluster_ca_certificate
+    access_token = get_gke_access_token()
+
+    # Configure kubeconfig with the cluster details (Autopilot or regular)
+    config.load_kube_config_from_dict({
+        'apiVersion': 'v1',
+        'clusters': [{
+            'name': cluster_name,
+            'cluster': {
+                'server': f'https://{endpoint}',
+                'certificate-authority-data': cluster_ca_certificate,
+            }
+        }],
+        'contexts': [{
+            'name': cluster_name,
+            'context': {
+                'cluster': cluster_name,
+                'user': 'gke-user',
+            }
+        }],
+        'current-context': cluster_name,
+        'users': [{
+            'name': 'gke-user',
+            'user': {
+                'token': access_token,
+            }
+        }]
+    })
+    
+
+def get_gke_access_token():
+    """Fetches a new access token to authenticate the Kubernetes client."""
+    credentials = compute_engine.Credentials()
+    credentials.refresh(Request())  # Refresh the credentials to get a new token
+    return credentials.token
+
+# 2. Create the DaemonSet in the Autopilot GKE cluster
+def create_daemonset(yamlpath):
+    # Define the DaemonSet manifest
+    # daemonset_manifest = {
+    #     'apiVersion': 'apps/v1',
+    #     'kind': 'DaemonSet',
+    #     'metadata': {
+    #         'name': 'example-daemonset',
+    #         'namespace': 'default'
+    #     },
+    #     'spec': {
+    #         'selector': {
+    #             'matchLabels': {
+    #                 'name': 'example'
+    #             }
+    #         },
+    #         'template': {
+    #             'metadata': {
+    #                 'labels': {
+    #                     'name': 'example'
+    #                 }
+    #             },
+    #             'spec': {
+    #                 'containers': [
+    #                     {
+    #                         'name': 'example-container',
+    #                         'image': 'nginx:latest',
+    #                         'ports': [{'containerPort': 80}]
+    #                     }
+    #                 ]
+    #             }
+    #         }
+    #     }
+    # }
+
+    daemonset_manifest = load_daemonset_from_yaml(yamlpath)
+
+    # Instantiate the Kubernetes API client
+    apps_v1 = client.AppsV1Api()
+
+    try:
+        # Create the DaemonSet in the specified namespace
+        api_response = apps_v1.create_namespaced_daemon_set(
+            body=daemonset_manifest,
+            namespace='default'  # Change the namespace if needed
+        )
+        print(f"DaemonSet created. Status: {api_response.status}")
+    except ApiException as e:
+        print(f"Exception when creating DaemonSet: {e}")
+
+def daemonset_exists(daemonset_name, namespace):
+    apps_v1 = client.AppsV1Api()
+
+    try:
+        # Check if the DaemonSet exists
+        apps_v1.read_namespaced_daemon_set(daemonset_name, namespace)
+        return True  # If it exists, return True
+    except ApiException as e:
+        if e.status == 404:
+            return False  # DaemonSet does not exist
+        else:
+            raise  # Other errors should be raised
+def verify_daemonset(daemonset_name,namespace,cluster_name,region,project_id):
+    # Load the kubeconfig (configured with GKE cluster)
+    #config.load_kube_config()  # Ensure that you are authenticated and using the correct kubeconfig
+    get_gke_credentials(cluster_name,region,project_id)
+    # Instantiate the Kubernetes API client
+    apps_v1 = client.AppsV1Api()
+
+    # Specify the DaemonSet and namespace
+    # daemonset_name = 'example-daemonset'
+    # namespace = 'default'
+
+    try:
+        # Fetch the DaemonSet details
+        daemonset = apps_v1.read_namespaced_daemon_set(daemonset_name, namespace)
+
+        # Print details about the DaemonSet
+        print(f"DaemonSet {daemonset_name} Status:")
+        print(f"Desired Pods: {daemonset.status.desired_number_scheduled}")
+        print(f"Current Pods: {daemonset.status.current_number_scheduled}")
+        print(f"Pods Available: {daemonset.status.number_available}")
+        print(f"Pods Misscheduled: {daemonset.status.number_misscheduled}")
+        print(f"Pods Ready: {daemonset.status.number_ready}")
+
+        # Check if the DaemonSet is fully deployed
+        if daemonset.status.desired_number_scheduled == daemonset.status.number_ready:
+            print(f"DaemonSet {daemonset_name} is fully deployed!")
+        else:
+            print(f"DaemonSet {daemonset_name} is not fully deployed.")
+    except ApiException as e:
+        print(f"Exception when verifying DaemonSet: {e}")
+def load_daemonset_from_yaml(file_path):
+    with open(file_path, 'r') as file:
+        return yaml.safe_load(file)
+
+# This function will be triggered by an HTTP request
+def create_k8s_resources(namespace,cluster_name,region,project_id):
+
+    try:
+        # Get the credentials
+        #credentials, project = google.auth.default()
+
+        # Initialize Kubernetes client
+        # You can use in-cluster config if you're running within GKE or Kubernetes
+        #config.load_kube_config()  # Or use load_incluster_config() for GKE
+        get_gke_credentials(cluster_name,region,project_id)
+        # Create Kubernetes client
+        k8s_client = client.CoreV1Api()
+
+        # Create Kubernetes Secret
+        secret_name = "my-secret"
+        namespace = "default"
+        secret_data = {"username": "admin", "password": "password123"}
+
+        secret = client.V1Secret(
+            metadata=client.V1ObjectMeta(name=secret_name),
+            data={key: value.encode('utf-8') for key, value in secret_data.items()},
+            type="Opaque"
+        )
+
+        k8s_client.create_namespaced_secret(namespace, secret)
+        print(f"Secret {secret_name} created successfully in {namespace} namespace.")
+
+        # Create Kubernetes Service
+        service_name = "my-service"
+        service = client.V1Service(
+            metadata=client.V1ObjectMeta(name=service_name),
+            spec=client.V1ServiceSpec(
+                selector={"app": "my-app"},
+                ports=[client.V1ServicePort(port=80, target_port=8080)],
+                type="ClusterIP"
+            )
+        )
+
+        k8s_client.create_namespaced_service(namespace, service)
+        print(f"Service {service_name} created successfully in {namespace} namespace.")
+
+        # Create ClusterRole
+        cluster_role_name = "my-cluster-role"
+        cluster_role = client.V1ClusterRole(
+            metadata=client.V1ObjectMeta(name=cluster_role_name),
+            rules=[
+                client.V1PolicyRule(
+                    verbs=["get", "list", "create"],
+                    api_groups=[""],
+                    resources=["pods"]
+                )
+            ]
+        )
+
+        # Apply the ClusterRole
+        rbac_client = client.RbacAuthorizationV1Api()
+        rbac_client.create_cluster_role(cluster_role)
+        print(f"ClusterRole {cluster_role_name} created successfully.")
+
+        # Create RoleBinding
+        role_binding_name = "my-role-binding"
+        role_binding = client.V1RoleBinding(
+            metadata=client.V1ObjectMeta(name=role_binding_name),
+            subjects=[client.V1Subject(kind="ServiceAccount", name="default", namespace=namespace)],
+            role_ref=client.V1RoleRef(kind="ClusterRole", name=cluster_role_name, api_group="rbac.authorization.k8s.io")
+        )
+
+        rbac_client.create_namespaced_role_binding(namespace, role_binding)
+        print(f"RoleBinding {role_binding_name} created successfully.")
+
+        return "Kubernetes resources created successfully.", 200
+
+    except ApiException as e:
+        print(f"Error occurred: {e}")
+        return f"An error occurred: {e}", 500
+
+
+# Main Cloud Function Entry Point
+def deploy_daemonset(cluster_name,region,project_id,daemonset_name,namespace,yamlpath):
+    # Set GKE Autopilot cluster details (adjust these as needed)
+    # cluster_name = 'your-cluster-name'
+    # zone = 'your-cluster-zone'
+    # project_id = 'your-project-id'
+
+    # Authenticate and configure Kubernetes client
+    #get_gke_credentials(cluster_name, region, project_id)
+    get_gke_credentials(cluster_name,region,project_id)
+    # Deploy DaemonSet
+    if daemonset_exists(daemonset_name, namespace):
+        print(f"DaemonSet '{daemonset_name}' already exists. Skipping deployment.Below is the current status")
+        verify_daemonset(daemonset_name,namespace,cluster_name,region,project_id)
+    else:
+        print(f"DaemonSet '{daemonset_name}' does not exist. Proceeding with deployment.")
+        # Deploy DaemonSet
+        create_daemonset(yamlpath)
+
+        # Optionally, verify the DaemonSet deployment status
+        verify_daemonset(daemonset_name,namespace,cluster_name,region,project_id)
+        create_k8s_resources(namespace,cluster_name,region,project_id)
+
+    return 'DaemonSet deployment initiated.'
+
