@@ -323,3 +323,10 @@ def deploy_daemonset(cluster_name,region,project_id,daemonset_name,namespace,yam
 
     return 'DaemonSet deployment initiated.'
 
+
+
+    except ApiException as e:
+        if e.status == 404:
+            print(f"DaemonSet {daemonset_name} not found in namespace {namespace}.")
+        else:
+            print(f"Exception when verifying DaemonSet: {e}")
