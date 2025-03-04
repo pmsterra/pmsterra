@@ -376,3 +376,29 @@ model_response = "Cloud services offer flexibility, scalability, and cost saving
 # Validate grounding
 check_grounding(user_query, model_response)
 
+from google.cloud import aiplatform
+
+def delete_index_and_endpoint(project: str, region: str, index_id: str, endpoint_id: str):
+    # Initialize the Vertex AI client
+    aiplatform.init(project=project, location=region)
+
+    # Delete the index
+    try:
+        index = aiplatform.MatchingEngineIndex(index_id=index_id)
+        index.delete()
+        print(f"Index {index_id} deleted successfully.")
+    except Exception as e:
+        print(f"Failed to delete index {index_id}: {e}")
+    
+    # Delete the endpoint
+    try:
+        endpoint = aiplatform.Endpoint(endpoint_id=endpoint_id)
+        endpoint.delete()
+        print(f"Endpoint {endpoint_id} deleted successfully.")
+    except Exception as e:
+        print(f"Failed to delete endpoint {endpoint_id}: {e}")
+
+# Call the function with your GCP project, region, and the IDs of your index and endpoint
+delete_index_and_endpoint('your-project-id', 'your-region', 'your-index-id', 'your-endpoint-id')
+
+
