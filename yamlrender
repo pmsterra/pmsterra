@@ -1,0 +1,38 @@
+import yaml
+
+# The image value you want to insert dynamically
+image_variable = 'nginx:latest'
+
+# Load the YAML template
+with open('daemonset_template.yaml', 'r') as template_file:
+    template_data = yaml.safe_load(template_file)
+
+# Replace the placeholder with the actual image variable
+template_data['spec']['template']['spec']['containers'][0]['image'] = image_variable
+
+# Write the modified YAML to a new file
+with open('updated_daemonset.yaml', 'w') as output_file:
+    yaml.dump(template_data, output_file, default_flow_style=False)
+
+print("YAML file has been updated with the image value.")
+
+
+
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: my-daemonset
+spec:
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      containers:
+        - name: my-container
+          image: nginx:latest
+          ports:
+            - containerPort: 80
