@@ -1,0 +1,38 @@
+Here is a more polished and executive-level version of the content you shared:
+
+
+---
+
+Centralized Deployment of Prisma Defender on GCP Composer Clusters within the SDLC
+
+Executive Summary:
+Kubernetes clusters provisioned by GCP Composer V2 were identified as non-compliant (Control Gap ID: C-263484) by the cybersecurity team. The root cause was the absence of Prisma Defender agents, which are critical for container vulnerability scanning and overall compliance.
+
+Solution Overview:
+We implemented an automated framework to deploy Prisma Defender agents across Google Composer-managed GKE clusters. This solution ensures all necessary components are correctly configured and compliant with cybersecurity standards.
+
+Key components of the solution include:
+
+Automation Framework: Developed the wf-composer-defender-hostproject module to standardize and streamline Defender deployments.
+
+Centralized Architecture: All deployment resources reside in a central HOST project and are orchestrated using Cloud Scheduler, Pub/Sub, and Cloud Functions.
+
+Scalable & Consistent Execution: Automation enables consistent rollout and centralized management across environments.
+
+
+Key Benefits & Impact:
+
+Centralized Deployment: All Prisma Defender deployments are triggered from a centralized HOST project to Composer clusters, improving manageability, reducing overhead, and enabling consistency across environments.
+
+Risk Mitigation: Addresses a critical compliance gap by enabling vulnerability scanning across 131 GKE clusters, including those running on GKE Autopilot.
+
+Improved Security Posture: Enhances container and host-level security for Composer clusters, preventing potential cloud exposure from vulnerable workflow data.
+
+Proven Success: All Composer V2 GKE clusters now successfully report vulnerability data to the Prisma Console in the QA-ENT environment.
+
+
+
+---
+
+Let me know if you'd like this in a slide format or with accompanying visuals.
+
