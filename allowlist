@@ -1,0 +1,53 @@
+from kubernetes import client, config
+from kubernetes.client import ApiException
+
+def create_allowlist_synchronizer(name: str, namespace: str, allowlist_paths: list[str]):
+    # Load Kubeconfig and initialize dynamic client
+    config.load_kube_config()
+    api = client.CustomObjectsApi()
+
+    crd = {
+        "apiVersion": "auto.gke.io/v1",
+        "kind": "AllowlistSynchronizer",
+        "metadata": {"name": name, "namespace": namespace},
+        "spec": {"allowlistPaths": allowlist_paths},
+    }
+
+    try:
+        existing = api.get_namespaced_custom_object(
+            group="auto.gke.io",
+            version="v1",
+            namespace=namespace,
+            plural="allowlistsynchronizers",
+            name=name,
+        )
+        print(f"Updater: existing AllowlistSynchronizer '{name}' found, updating...")
+        api.patch_namespaced_custom_object(
+            group="auto.gke.io",
+            version="v1",
+            namespace=namespace,
+            plural="allowlistsynchronizers",
+            name=name,
+            body=crd,
+        )
+    except ApiException as e:
+        if e.status == 404:
+            print(f"Creating AllowlistSynchronizer '{name}'...")
+            api.create_namespaced_custom_object(
+                group="auto.gke.io",
+                version="v1",
+                namespace=namespace,
+                plural="allowlistsynchronizers",
+                body=crd,
+            )
+        else:
+            raise
+
+    print("✔️ Successfully created or updated AllowlistSynchronizer")
+
+if __name__ == "__main__":
+    create_allowlist_synchronizer(
+        name="kubescape-allow-list",
+        namespace="default",
+        allowlist_paths=["ARMO/armo-kubescape-node-agent/1.27/*"],
+    )
