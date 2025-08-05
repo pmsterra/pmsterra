@@ -1,0 +1,48 @@
+git clone https://github.com/google/adk-python.git
+cd adk-python/contributing/samples/a2a_basic
+
+Dockerfile
+
+
+
+# Use Python 3.10 base image
+FROM python:3.10-slim
+
+# Set working directory
+WORKDIR /app
+
+# Copy requirements and install
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy source code
+COPY . .
+
+# Run the FastAPI app using uvicorn
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+
+
+
+
+pip freeze > requirements.txt
+
+
+
+fastapi
+uvicorn
+google-generativeai
+# Include other dependencies if needed
+
+
+
+gcloud run deploy a2a-agent-service \
+  --source . \
+  --region us-central1 \
+  --platform managed \
+  --allow-unauthenticated
+
+
+Deploying... done.
+Service [a2a-agent-service] revision [a2a-agent-service-00001-abc] has been deployed and is serving 100 percent of traffic at:
+https://a2a-agent-service-abc-uc.a.run.app
+
