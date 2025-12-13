@@ -1,0 +1,76 @@
+You are a customer service assistant. Write a helpful and polite response to the following customer message:
+
+{{input}}
+
+
+from google.cloud import aiplatform
+
+PROJECT_ID = "<YOUR_PROJECT>"
+LOCATION = "us-central1"
+BUCKET = "gs://your-bucket/prompt-opt/"
+
+aiplatform.init(project=PROJECT_ID, location=LOCATION)
+
+# Create a Prompt Optimizer job
+job = aiplatform.PromptOptimizationJob.create(
+    display_name="customer-support-prompt-optimization",
+    
+    # Base prompt
+    prompt="""You are a customer service assistant. 
+              Write a helpful and polite response to the following customer message:
+              {{input}}""",
+    
+    # Data-driven mode: dataset path (CSV)
+    dataset_uri=f"{BUCKET}prompt_dataset.csv",
+    
+    # Column config
+    input_column="input",
+    reference_output_column="expected_output",
+    
+    # Optimization settings
+    optimization_objective="quality",
+    candidate_count=10  # number of prompt variations
+)
+
+print("Job created:", job.resource_name)
+
+job.wait()
+print("Job finished.")
+
+
+
+
+
+result = job.get_result()
+print(result.optimized_prompt)
+
+
+
+
+As a customer service representative, respond with empathy, apologize when needed,
+and provide clear next steps. Based on the customer's message below, craft
+a calm and helpful response:
+
+Customer message: {{input}}
+
+
+
+
+print(result.evaluation_metrics)
+print(result.candidate_prompts)
+
+
+
+
+from google.cloud import aiplatform
+
+model = aiplatform.Model("publishers/google/models/gemini-1.5-flash")
+
+response = model.predict({
+    "prompt": result.optimized_prompt.replace("{{input}}", "I need help with my refund"),
+})
+
+print(response)
+
+
+
