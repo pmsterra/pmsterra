@@ -72,5 +72,5 @@ response = model.predict({
 
 print(response)
 
-
+https://medium.com/google-cloud/enhance-your-prompts-with-vertex-ai-prompt-optimizer-a717753553fe
 
