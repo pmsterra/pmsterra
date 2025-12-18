@@ -282,3 +282,26 @@ variable "homepage_setting" {
   default = null
 }
 
+
+validation {
+    condition = (
+      var.access_settings == null ||
+      var.access_settings.allow_public_access != true
+    )
+    error_message = "Public unauthenticated access must be disabled. Set access_settings.allow_public_access to false or omit it."
+  }
+
+## Inputs
+
+| Name | Description | Type | Default | Required |
+|------|-------------|------|---------|:--------:|
+| access_settings | Describes widget access settings. | <pre>object({<br>  allow_public_access = optional(bool)<br>  allowlisted_domains = optional(list(string))<br>  enable_web_app = optional(bool)<br>  workforce_identity_pool_provider = optional(string)<br>  language_code = optional(string)<br>})</pre> | `null` | no |
+| collection_id | The collection ID. | `string` | `null` | no |
+| engine_id | The engine ID. | `string` | n/a | yes |
+| homepage_setting | Describes the homepage setting of the widget. | <pre>object({<br>  shortcuts = optional(list(object({<br>    title = optional(string)<br>    destination_uri = optional(string)<br>    icon = optional(object({<br>      url = optional(string)<br>    }))<br>  })))<br>})</pre> | `null` | no |
+| location | The geographic location where the widget config resides. Allowed values: global, us, eu. | `string` | n/a | yes |
+| project | The ID of the project in which the resource belongs. Defaults to the provider project. | `string` | `null` | no |
+| ui_branding | Describes search widget UI branding settings. | <pre>object({<br>  logo = optional(object({<br>    url = optional(string)<br>  }))<br>})</pre> | `null` | no |
+| ui_settings | Describes general widget (or web app) UI settings. | <pre>object({<br>  interaction_type = optional(string)<br>  result_description_type = optional(string)<br>  enable_autocomplete = optional(bool)<br>  enable_safe_search = optional(bool)<br>  enable_quality_feedback = optional(bool)<br>  enable_search_as_you_type = optional(bool)<br>  default_search_request_order_by = optional(string)<br>  disable_user_events_collection = optional(bool)<br>  enable_visual_content_summary = optional(bool)<br>  enable_people_search = optional(bool)<br>  enable_create_agent_button = optional(bool)<br>  generative_answer_config = optional(object({<br>    result_count = optional(number)<br>    model_version = optional(string)<br>    model_prompt_preamble = optional(string)<br>    max_rephrase_steps = optional(number)<br>    language_code = optional(string)<br>    disable_related_questions = optional(bool)<br>    ignore_non_answer_seeking_query = optional(bool)<br>    ignore_adversarial_query = optional(bool)<br>    ignore_low_relevant_content = optional(bool)<br>    image_source = optional(string)<br>  }))<br>  data_store_ui_configs = optional(list(object({<br>    name = optional(string)<br>    facet_field = optional(list(object({<br>      field = string<br>      display_name = optional(string)<br>    })))<br>    fields_ui_components_map = optional(list(object({<br>      ui_component = string<br>      field = string<br>      device_visibility = optional(list(string))<br>      display_template = optional(string)<br>    })))<br>  }))<br>})</pre> | `null` | no |
+| widget_config_id | The unique ID to use for the WidgetConfig. | `string` | `null` | no |
+
