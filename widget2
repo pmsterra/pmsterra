@@ -1,0 +1,272 @@
+resource "google_discovery_engine_widget_config" "this" {
+  location  = var.location
+  engine_id = var.engine_id
+
+  # Optional top-level arguments
+  collection_id     = var.collection_id
+  widget_config_id  = var.widget_config_id
+  project           = var.project
+
+  ################################
+  # Access settings
+  ################################
+  dynamic "access_settings" {
+    for_each = var.access_settings == null ? [] : [var.access_settings]
+    content {
+      allow_public_access = access_settings.value.allow_public_access
+      allowlisted_domains = access_settings.value.allowlisted_domains
+      enable_web_app      = access_settings.value.enable_web_app
+
+      workforce_identity_pool_provider = access_settings.value.workforce_identity_pool_provider
+      language_code                    = access_settings.value.language_code
+    }
+  }
+
+  ################################
+  # UI settings
+  ################################
+  dynamic "ui_settings" {
+    for_each = var.ui_settings == null ? [] : [var.ui_settings]
+    content {
+      interaction_type                  = ui_settings.value.interaction_type
+      result_description_type           = ui_settings.value.result_description_type
+      enable_autocomplete               = ui_settings.value.enable_autocomplete
+      enable_safe_search                = ui_settings.value.enable_safe_search
+      enable_quality_feedback           = ui_settings.value.enable_quality_feedback
+      enable_search_as_you_type         = ui_settings.value.enable_search_as_you_type
+      default_search_request_order_by   = ui_settings.value.default_search_request_order_by
+      disable_user_events_collection    = ui_settings.value.disable_user_events_collection
+      enable_visual_content_summary     = ui_settings.value.enable_visual_content_summary
+      enable_people_search              = ui_settings.value.enable_people_search
+      enable_create_agent_button        = ui_settings.value.enable_create_agent_button
+
+      ##############################
+      # Generative answer config
+      ##############################
+      dynamic "generative_answer_config" {
+        for_each = ui_settings.value.generative_answer_config == null ? [] : [ui_settings.value.generative_answer_config]
+        content {
+          result_count                    = generative_answer_config.value.result_count
+          model_version                   = generative_answer_config.value.model_version
+          model_prompt_preamble           = generative_answer_config.value.model_prompt_preamble
+          max_rephrase_steps              = generative_answer_config.value.max_rephrase_steps
+          language_code                   = generative_answer_config.value.language_code
+
+          disable_related_questions       = generative_answer_config.value.disable_related_questions
+          ignore_non_answer_seeking_query = generative_answer_config.value.ignore_non_answer_seeking_query
+          ignore_adversarial_query        = generative_answer_config.value.ignore_adversarial_query
+          ignore_low_relevant_content     = generative_answer_config.value.ignore_low_relevant_content
+          image_source                    = generative_answer_config.value.image_source
+        }
+      }
+
+      ##############################
+      # Data store UI configs
+      ##############################
+      dynamic "data_store_ui_configs" {
+        for_each = ui_settings.value.data_store_ui_configs == null ? [] : ui_settings.value.data_store_ui_configs
+        content {
+          name = data_store_ui_configs.value.name
+
+          dynamic "facet_field" {
+            for_each = data_store_ui_configs.value.facet_field == null ? [] : data_store_ui_configs.value.facet_field
+            content {
+              field        = facet_field.value.field
+              display_name = facet_field.value.display_name
+            }
+          }
+
+          dynamic "fields_ui_components_map" {
+            for_each = data_store_ui_configs.value.fields_ui_components_map == null ? [] : data_store_ui_configs.value.fields_ui_components_map
+            content {
+              ui_component      = fields_ui_components_map.value.ui_component
+              field             = fields_ui_components_map.value.field
+              device_visibility = fields_ui_components_map.value.device_visibility
+              display_template  = fields_ui_components_map.value.display_template
+            }
+          }
+        }
+      }
+    }
+  }
+
+  ################################
+  # UI branding
+  ################################
+  dynamic "ui_branding" {
+    for_each = var.ui_branding == null ? [] : [var.ui_branding]
+    content {
+      dynamic "logo" {
+        for_each = ui_branding.value.logo == null ? [] : [ui_branding.value.logo]
+        content {
+          url = logo.value.url
+        }
+      }
+    }
+  }
+
+  ################################
+  # Homepage setting
+  ################################
+  dynamic "homepage_setting" {
+    for_each = var.homepage_setting == null ? [] : [var.homepage_setting]
+    content {
+      dynamic "shortcuts" {
+        for_each = homepage_setting.value.shortcuts == null ? [] : homepage_setting.value.shortcuts
+        content {
+          title           = shortcuts.value.title
+          destination_uri = shortcuts.value.destination_uri
+
+          dynamic "icon" {
+            for_each = shortcuts.value.icon == null ? [] : [shortcuts.value.icon]
+            content {
+              url = icon.value.url
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+
+
+
+
+
+variable 
+
+########################################
+# Required arguments
+########################################
+
+variable "location" {
+  description = "The geographic location where the widget config resides. Allowed values: global, us, eu."
+  type        = string
+}
+
+variable "engine_id" {
+  description = "The engine ID."
+  type        = string
+}
+
+########################################
+# Optional top-level arguments
+########################################
+
+variable "collection_id" {
+  description = "The collection ID."
+  type        = string
+  default     = null
+}
+
+variable "widget_config_id" {
+  description = "The unique ID to use for the WidgetConfig. Currently only accepts `default_search_widget_config`."
+  type        = string
+  default     = null
+}
+
+variable "project" {
+  description = "The ID of the project in which the resource belongs. Defaults to the provider project."
+  type        = string
+  default     = null
+}
+
+########################################
+# Access settings
+########################################
+
+variable "access_settings" {
+  description = "Describes widget access settings."
+  type = object({
+    allow_public_access = optional(bool)
+    allowlisted_domains = optional(list(string))
+    enable_web_app      = optional(bool)
+
+    workforce_identity_pool_provider = optional(string)
+    language_code                    = optional(string)
+  })
+  default = null
+}
+
+########################################
+# UI settings
+########################################
+
+variable "ui_settings" {
+  description = "Describes general widget (or web app) UI settings."
+  type = object({
+    interaction_type                = optional(string)
+    result_description_type         = optional(string)
+
+    enable_autocomplete             = optional(bool)
+    enable_safe_search              = optional(bool)
+    enable_quality_feedback         = optional(bool)
+    enable_search_as_you_type       = optional(bool)
+    default_search_request_order_by = optional(string)
+
+    disable_user_events_collection  = optional(bool)
+    enable_visual_content_summary   = optional(bool)
+    enable_people_search            = optional(bool)
+    enable_create_agent_button      = optional(bool)
+
+    ####################################
+    # Generative answer configuration
+    ####################################
+    generative_answer_config = optional(object({
+      result_count                    = optional(number)
+      model_version                   = optional(string)
+      model_prompt_preamble           = optional(string)
+      max_rephrase_steps              = optional(number)
+      language_code                   = optional(string)
+
+      disable_related_questions       = optional(bool)
+      ignore_non_answer_seeking_query = optional(bool)
+      ignore_adversarial_query        = optional(bool)
+      ignore_low_relevant_content     = optional(bool)
+
+      image_source                    = optional(string)
+    }))
+
+    ####################################
+    # Per data store UI configuration
+    ####################################
+    data_store_ui_configs = optional(list(object({
+      name = optional(string)
+
+      facet_field = optional(list(object({
+        field        = string
+        display_name = optional(string)
+      })))
+
+      fields_ui_components_map = optional(list(object({
+        ui_component      = string
+        field             = string
+        device_visibility = optional(list(string))
+        display_template  = optional(string)
+      })))
+    })))
+  })
+  default = null
+}
+
+########################################
+# UI branding
+########################################
+
+variable "ui_branding" {
+  description = "Describes search widget UI branding settings."
+  type = object({
+    logo = optional(object({
+      url = optional(string)
+    }))
+  })
+  default = null
+}
+
+########################################
+# Homepage settings
+###################################
+
+
+
