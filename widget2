@@ -268,5 +268,17 @@ variable "ui_branding" {
 # Homepage settings
 ###################################
 
-
+variable "homepage_setting" {
+  description = "Describes the homepage setting of the widget."
+  type = object({
+    shortcuts = optional(list(object({
+      title           = optional(string)
+      destination_uri = optional(string)
+      icon = optional(object({
+        url = optional(string)
+      }))
+    })))
+  })
+  default = null
+}
 
