@@ -29,3 +29,159 @@ Autoscaling, A/B testing, canary deployments
 
 Model performance monitoring (drift, skew)
 Alerts + trigger retraining pipelines
+
+------------------------------------------------------
+
+Slide 1: Data & Feature Management
+MLOps Capabilities – Data & Features (Google Cloud Vertex AI)
+
+Feature Store
+
+Centralized, reusable feature repository (online + offline serving)
+Ensures training-serving consistency
+
+Data Integration
+
+Native integration with BigQuery, Cloud Storage
+Supports structured, unstructured, and streaming data
+
+Dataset Management
+
+Managed datasets for AutoML + custom training reuse
+Enables consistent dataset versioning across pipelines
+
+Key Value
+👉 Standardized, reusable data layer for ML pipelines
+
+Slide 2: Pipeline Orchestration
+MLOps Capabilities – Pipelines
+
+Vertex AI Pipelines
+
+Managed Kubeflow-based orchestration
+DAG-based workflows (train → evaluate → deploy)
+
+Reusable Components
+
+Containerized pipeline steps
+Promotes modular ML workflows
+
+CI/CD Integration
+
+Trigger pipelines via GitHub / Cloud Build
+Supports automated retraining workflows
+
+Metadata Tracking
+
+Tracks lineage (data → model → deployment)
+
+Key Value
+👉 Production-grade ML workflow automation
+
+Slide 3: Training & Experimentation (Deep Dive)
+MLOps Capabilities – Training
+
+Training Options Spectrum
+
+AutoML → no-code model training
+Custom Training → full control with your code
+
+Custom Training Modes
+
+Serverless Training
+Fully managed, no infra management
+On-demand compute (CPU/GPU/TPU)
+Ideal for experimentation & burst workloads
+Training Clusters (Serverful)
+Dedicated, reserved cluster capacity
+High-performance, large-scale training (Slurm-based)
+Handles hardware failures & scaling automatically
+Distributed Training
+Multi-node training with GPUs/TPUs
+Built-in optimization (e.g., reduction server)
+Ray on Vertex AI
+Distributed Python workloads using Ray
+Scales to large clusters, supports ML + data processing
+
+Experimentation
+
+Hyperparameter tuning jobs (automated trials)
+Experiment tracking + artifact logging
+
+Key Value
+👉 Flexible training: serverless → cluster → distributed → Ray
+
+Slide 4: Model Management
+MLOps Capabilities – Model Management
+
+Model Registry
+
+Centralized model storage
+Versioning + lifecycle management
+
+Model Lineage
+
+Tracks dataset, training job, parameters
+Enables reproducibility
+
+Governance
+
+Model approval workflows
+Metadata + auditability
+
+Key Value
+👉 Controlled, traceable model lifecycle
+
+Slide 5: Deployment & Serving
+MLOps Capabilities – Deployment
+
+Online Prediction
+
+Real-time endpoints with autoscaling
+Low-latency inference
+
+Batch Prediction
+
+Large-scale offline predictions
+
+Advanced Deployment
+
+A/B testing, canary rollout
+Traffic splitting across model versions
+
+Container Support
+
+Prebuilt + custom containers for inference
+
+Key Value
+👉 Scalable, flexible model serving
+
+Slide 6: Monitoring & Continuous Improvement
+MLOps Capabilities – Monitoring
+
+Model Monitoring
+
+Detects data drift & prediction skew
+Tracks model performance over time
+
+Alerting
+
+Integrated alerts for anomalies
+
+Feedback Loop
+
+Trigger retraining pipelines automatically
+
+Operational Visibility
+
+Logs, metrics, and debugging tools
+
+Key Value
+👉 Closed-loop MLOps (monitor → retrain → improve)
+
+Optional Final Slide (if needed)
+Vertex AI MLOps – Key Takeaway
+
+
+
+-------------------------------------------------------------------
