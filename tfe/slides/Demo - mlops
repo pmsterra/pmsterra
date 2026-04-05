@@ -1,0 +1,31 @@
+MLOps Capabilities in Google Cloud Vertex AI
+
+🔹 Data & Feature Management
+
+Built-in Feature Store for reusable, consistent features
+Integration with GCP data services (BigQuery, GCS)
+
+🔹 Pipeline Orchestration
+
+Vertex AI Pipelines for end-to-end workflow automation
+Reusable, scalable ML pipelines (Kubeflow-based)
+
+🔹 Training & Experimentation
+
+Managed training (AutoML + custom training)
+Experiment tracking & hyperparameter tuning
+
+🔹 Model Management
+
+Centralized Model Registry
+Versioning, lineage, and governance
+
+🔹 Deployment & Serving
+
+Real-time & batch prediction endpoints
+Autoscaling, A/B testing, canary deployments
+
+🔹 Monitoring & Continuous Improvement
+
+Model performance monitoring (drift, skew)
+Alerts + trigger retraining pipelines
