@@ -1,0 +1,46 @@
+Challenges in Cloud Service Enablement (Preview → GA)
+
+Context
+
+Adoption of new cloud services/features during Preview (pre-GA)
+Managed via Terraform Enterprise (TFE)
+
+Challenges
+
+Immature Features: Limited stability, documentation, and support
+TFE Gaps: Required resources/providers not fully available in TFE
+Provider Dependency: Coordination needed with **Google for access, quotas, fixes
+Frequent Changes: APIs/configs evolve before GA → rework required
+Higher Effort: Extra testing, validation, and monitoring overhead
+
+Impact
+
+Slower delivery timelines
+Increased engineering effort
+Higher risk to production readiness
+
+----
+
+
+  Cloud Service Enablement Challenges (Preview → GA)
+
+Context
+
+Early adoption of new features via Terraform Enterprise (TFE)
+
+Key Issues
+
+Unstable Preview Features
+TFE Support Gaps
+Dependency on Google for enablement
+Frequent Changes → Rework
+Increased Operational Overhead
+
+Impact
+
+Delays in delivery
+Higher engineering effort
+Increased production risk
+
+
+  
