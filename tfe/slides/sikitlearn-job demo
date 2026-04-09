@@ -1,0 +1,62 @@
+from sklearn.datasets import load_iris
+from sklearn.ensemble import RandomForestClassifier
+import joblib
+import os
+
+def train():
+    data = load_iris()
+    X, y = data.data, data.target
+
+    model = RandomForestClassifier()
+    model.fit(X, y)
+
+    model_dir = os.environ.get("AIP_MODEL_DIR")
+    joblib.dump(model, f"{model_dir}/model.joblib")
+
+if __name__ == "__main__":
+    train()
+
+
+    ------ job-----
+
+    from sklearn.datasets import load_iris
+from sklearn.ensemble import RandomForestClassifier
+import joblib
+import os
+
+def train():
+    data = load_iris()
+    X, y = data.data, data.target
+
+    model = RandomForestClassifier()
+    model.fit(X, y)
+
+    model_dir = os.environ.get("AIP_MODEL_DIR")
+    joblib.dump(model, f"{model_dir}/model.joblib")
+
+if __name__ == "__main__":
+    train()
+
+
+job
+
+from google.cloud import aiplatform
+
+aiplatform.init(
+    project="YOUR_PROJECT",
+    location="us-central1"
+)
+
+job = aiplatform.CustomTrainingJob(
+    display_name="demo-training-job",
+    script_path="train.py",
+    container_uri="us-docker.pkg.dev/vertex-ai/training/scikit-learn-cpu.1-0:latest",
+)
+
+model = job.run(
+    machine_type="n1-standard-4",
+    replica_count=1,
+)
+
+
+    
