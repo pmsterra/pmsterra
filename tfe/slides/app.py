@@ -32,3 +32,11 @@ def predict(
     return {
         "prediction": prediction
     }
+
+
+
+$ uvicorn app:app --host 0.0.0.0 --port 8000
+INFO:     Started server process [8334]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
